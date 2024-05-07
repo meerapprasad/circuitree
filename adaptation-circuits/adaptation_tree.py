@@ -1,12 +1,22 @@
 import numpy as np
 from circuitree import CircuiTree
 from circuitree.models import SimpleNetworkGrammar
-from time import sleep
+from tf_network import TFNetworkModel
+from sample_params import generate_samples
+from collections import Counter
+# from time import sleep
+import sys
 
 grammar = SimpleNetworkGrammar(
-    components=["A", "B", "C"], interactions=["activates", "inhibits"]
+    components=["A", "B", "C"], interactions=["activates", "inhibits"],
+    fixed_components=["A", "B", "C"],
 )
+# number of nodes in the tree will be less bc ignoring connected graphs
+# fixing
 
+# todo: should I not consider one node topologies ?
+# print('done')
+## TODO: where to find the topologies, make a dict with param order
 
 def get_bistability_reward(
     state: str, rg: np.random.Generator, grammar: SimpleNetworkGrammar
@@ -37,7 +47,7 @@ def get_bistability_reward(
     return rg.normal(loc=mean, scale=0.1)
 
 
-class BistabilityTree(CircuiTree):
+class AdaptationTree(CircuiTree):
     """A subclass of CircuiTree that searches for positive feedback networks.
     Uses the SimpleNetworkGrammar to encode network topologies. In the
     SimpleNetworkGrammar, each topology or 'state' is specified using a 3-part
@@ -58,49 +68,43 @@ class BistabilityTree(CircuiTree):
     The grammar can be accessed with the `self.grammar` attribute.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, grammar: SimpleNetworkGrammar, *args, **kwargs) -> None:
         super().__init__(grammar=grammar, *args, **kwargs)
-
+        self.grammar = grammar
+        compute_unique = False
+        # if args.seed is not None:
+        #     self.rg = np.random.default_rng(args.seed)
+        # else:
+        self.rg = np.random.default_rng(2024)
+        self.n_samples = int(kwargs.get('n_samples', 1e3))
         vist_counter = Counter() # from collections import Counter
-        param_table: dict[str, tuple] = ...
+        # todo: check these dimensions
+        # self.params_dict = generate_samples(len(grammar.components), self.n_samples, self.rg)  # key is number of components
+        # todo: for each topology, give an order of the indices for sample order
+
+        # param_table: dict[str, tuple] = ...
         # param dict -- gives parameters for each topology, order to index the param table
 
+    # todo: how to go from parameter table to the topology
     def get_param_set_index(self, state: str, visit: int) -> int:
         """Get the index of the parameter set to use for this state and visit number."""
 
         # Get number of parameters for this state
         n_params = ...
-
-        # Get parameter ranges
-        param_ranges: np.array = ...
-
-        # Draw a random parameter set
-        rg = np.default_rng(...) # Should depend uniquely on both state and visit_num
-        # params_uniform = rg.uniform(0, 1, size=n_params)
-        param_set_index = rg.integer(0, self.n_param_sets) #Now, n_param_sets only has uniform random numbers
-        param_set = param_ranges[:, 0] + (param_ranges[:, 1] - param_ranges[:, 0]) * params_uniform
-
-        # Shuffle the param sets in a manner unique to each state
-        param_set_indices = np.arange(self.n_param_sets)
-        hash_val = hash(state) + sys.maxsize  # Make sure it's non-negative
-        np.random.default_rng(hash_val).shuffle(param_set_indices)
-        return param_set_indices[visit % self.n_param_sets]
+        pass
 
     def get_reward(self, state: str, expensive: bool = False) -> float:
         """Returns a reward value for the given state (topology) based on
         whether it contains positive-feedback loops (PFLs)."""
 
-        visit_num = self.visit_counter[state]
-        visit_counter[state] += 1
+        # visit_num = self.visit_counter[state]
+        # visit_counter[state] += 1
+        #
+        # param_set_idx = self.get_param_set_index(state, visit_num)
+        # param_set = self.param_sets[param_set_idx]
 
-        param_set_idx = self.get_param_set_index(state, visit_num)
-        param_set = self.param_sets[param_set_idx]
-
-        reward = get_bistability_reward(state, self.rg, self.grammar, param_set)
-
-        # Simulate a more expensive reward calculation
-        if expensive:
-            sleep(0.1)
+        model = TFNetworkModel(state)
+        reward = model.run_ode_with_params()
 
         return reward
 
@@ -120,3 +124,29 @@ class BistabilityTree(CircuiTree):
             return False
 
         return self.get_mean_reward(state) > 0.5
+
+
+tree = AdaptationTree(root='ABC::', grammar=grammar, n_samples=1e2)
+print('done')
+
+
+# def get_param_set_index(self, state: str, visit: int) -> int:
+#     """Get the index of the parameter set to use for this state and visit number."""
+#
+#     # Get number of parameters for this state
+#     # n_params = ...
+#
+#     # Get parameter ranges
+#     # param_ranges: np.array = ...
+#
+#     # Draw a random parameter set
+#     # rg = np.default_rng(...) # Should depend uniquely on both state and visit_num
+#     # params_uniform = rg.uniform(0, 1, size=n_params)
+#     # param_set_index = rg.integer(0, self.n_param_sets) #Now, n_param_sets only has uniform random numbers
+#     # param_set = param_ranges[:, 0] + (param_ranges[:, 1] - param_ranges[:, 0]) * params_uniform
+#
+#     # Shuffle the param sets in a manner unique to each state
+#     param_set_indices = np.arange(self.n_param_sets)
+#     hash_val = hash(state) + sys.maxsize  # Make sure it's non-negative
+#     np.random.default_rng(hash_val).shuffle(param_set_indices)
+#     return param_set_indices[visit % self.n_param_sets]

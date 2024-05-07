@@ -55,6 +55,7 @@ class CircuiTree(ABC):
 
         # Initialize search graph
         self.root = root
+
         if graph is None:
             self.graph = nx.DiGraph()
             self.graph.add_node(self.root, visits=0, reward=0)
@@ -90,6 +91,12 @@ class CircuiTree(ABC):
             "rg",
             "graph",
         ]
+
+        if kwargs.get('emumerate_topologies'):
+            # todo: enumerate all topologies
+            self.grow_tree(root)
+            topologies = get_topologies_from_tree(np.array(self.graph.nodes))
+
 
     @abstractmethod
     def get_reward(self, state) -> float | int:
@@ -251,7 +258,7 @@ class CircuiTree(ABC):
 
     def grow_tree(
         self, root=None, n_visits: int = 0, print_updates=False, print_every=1000
-    ):
+    ):  #len(self.graph.nodes)
         if root is None:
             root = self.root
             if print_updates:
@@ -260,11 +267,16 @@ class CircuiTree(ABC):
 
         stack = [(root, action) for action in self.grammar.get_actions(root)]
         n_added = 1
+        # stack is a list of entries, evaluates to true while there are still entries
         while stack:
+            # pop from the end to prevent blow-up of the stack
             node, action = stack.pop()
             if not self.grammar.is_terminal(node):
+                # look for next node by applying the action (child node)
                 next_node = self._do_action(node, action)
+                # if node not there, add it; also prevents building the same circuit twice
                 if next_node not in self.graph.nodes:
+                    # take grandchildren of parent node and add them to the stack
                     n_added += 1
                     self.graph.add_node(next_node, visits=n_visits, reward=0)
                     stack.extend(
