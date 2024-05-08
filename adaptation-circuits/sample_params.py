@@ -4,7 +4,7 @@ import numpy as np
 k_range = (.1, 10)
 K_range = (.002, 100)
 PARAM_RANGES= [k_range, K_range]
-# todo: sample with latin hypercube sampling
+# todo: sample with latin hypercube sampling, double check that these are correct
 
 def sample_ode_params(components, seed):
     m = components
@@ -52,14 +52,14 @@ def make_input_vals(init_val=.5, perc_increase=.2):
 # todo: how to tell when it has reached steady state? measure slopes of the curves and see if they are <.001 ?
 
 
-def generate_samples(max_components, n_samples, rg, n_params=2):
+def generate_samples(max_components, rg, n_samples, n_params=2):
     sample_per_component = {}
-    for i in range(1, max_components):
-        sampling = latin_hypercube_sampling(n_samples, rg, n_params=n_params)
-        k_cat = sampling[:, 0].reshape(n_samples, n_params, i, i)[np.newaxis]
-        K_thresh = sampling[:, 1].reshape(n_samples, n_params, i, i)[np.newaxis]
+    for i in range(1, max_components+1):
+        sampling = latin_hypercube_sampling(n_samples*2*i, rg, n_params=n_params)  # consider forward and reverse rxn
+        k_cat = sampling[:, 0].reshape(n_params,i,n_samples)[np.newaxis]
+        K_thresh = sampling[:, 1].reshape(n_params,i, n_samples)[np.newaxis]
         sample_per_component[i] = np.vstack([k_cat, K_thresh])
-
+    # access the params sample_per_component[i][:,0] and unlist k_cat, K_thresh
     return sample_per_component
 
 

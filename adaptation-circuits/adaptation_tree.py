@@ -4,6 +4,7 @@ from circuitree.models import SimpleNetworkGrammar
 from tf_network import TFNetworkModel
 from sample_params import generate_samples
 from collections import Counter
+from enumerate_topologies import build_param_idx_table, topologies_to_num_params, find_matching_topology
 # from time import sleep
 import sys
 
@@ -71,47 +72,66 @@ class AdaptationTree(CircuiTree):
     def __init__(self, grammar: SimpleNetworkGrammar, *args, **kwargs) -> None:
         super().__init__(grammar=grammar, *args, **kwargs)
         self.grammar = grammar
-        compute_unique = False
         # if args.seed is not None:
         #     self.rg = np.random.default_rng(args.seed)
         # else:
         self.rg = np.random.default_rng(2024)
         self.n_samples = int(kwargs.get('n_samples', 1e3))
-        vist_counter = Counter() # from collections import Counter
-        # todo: check these dimensions
-        # self.params_dict = generate_samples(len(grammar.components), self.n_samples, self.rg)  # key is number of components
-        # todo: for each topology, give an order of the indices for sample order
+        self.visit_counter = Counter()
+        self.Q_threshold = .01
+
+        # order with which parameters should be sampled
+        self.param_table = build_param_idx_table(self.grammar.components, self.rg, self.n_samples)
+        self.topology_size_table = topologies_to_num_params(self.param_table.keys())
 
         # param_table: dict[str, tuple] = ...
         # param dict -- gives parameters for each topology, order to index the param table
+        if kwargs.get('generate_param_sets'):
+            self.param_sets = generate_samples(len(self.grammar.components), self.rg, self.n_samples)
+            # todo: save to reload later
+        else:
+            # load from file
+            pass
 
     # todo: how to go from parameter table to the topology
+    # todo: make sure to split the state with :: to get the topology
     def get_param_set_index(self, state: str, visit: int) -> int:
         """Get the index of the parameter set to use for this state and visit number."""
-
-        # Get number of parameters for this state
-        n_params = ...
-        pass
+        # todo: the topology may be different than what is built
+        return self.param_table[state][visit]
 
     def get_reward(self, state: str, expensive: bool = False) -> float:
         """Returns a reward value for the given state (topology) based on
         whether it contains positive-feedback loops (PFLs)."""
+        if state is None:
+            return 0
+        else:
+            print(state)
+            state2 = self.convert_state(state)  # if state is not None else ''
+            # todo: this will not be tractable if there are more nodes
+            # state = find_matching_topology(state, self.param_table.keys())
+            visit_num = self.visit_counter[state2]
+            self.visit_counter[state] += 1
 
-        # visit_num = self.visit_counter[state]
-        # visit_counter[state] += 1
-        #
-        # param_set_idx = self.get_param_set_index(state, visit_num)
-        # param_set = self.param_sets[param_set_idx]
+            param_set_idx = self.get_param_set_index(state2, visit_num)
+            # index param table with 1. number of params and 2. the param set index
+            param_set = self.param_sets[self.topology_size_table[state2]][:, :, :, param_set_idx]
 
-        model = TFNetworkModel(state)
-        reward = model.run_ode_with_params()
+            model = TFNetworkModel(self.rg, state, params=param_set)
+            # todo: param_set needs to be a list of k_cat, K_thresh
+            reward = model.run_ode_with_params()
 
-        return reward
+            return reward
 
     def get_mean_reward(self, state: str) -> float:
-        return self.graph.nodes[state].get("reward", 0) / self.graph.nodes[state].get(
-            "visits", 1
-        )
+        if state is None:
+            return 0
+        else:
+            state = self.convert_state(state)
+            # state = find_matching_topology(state, self.param_table.keys())
+            return self.graph.nodes[state].get("reward", 0) / self.graph.nodes[state].get(
+                "visits", 1
+            )
 
     def is_success(self, state: str) -> bool:
         """Returns True if the state is terminal and a successful bistable
@@ -119,14 +139,27 @@ class AdaptationTree(CircuiTree):
         `reward` and `visits` attributes of each node in the graph.
 
         A state with no visits is assumed to have a mean reward of 0."""
+        # if not self.grammar.is_terminal(state):
+        #     return False
+        reward = self.graph.nodes[state]["reward"]
+        visits = self.graph.nodes[state]["visits"]
+        return visits > 0 and reward / visits >= self.Q_threshold
 
-        if not self.grammar.is_terminal(state):
-            return False
+    def convert_state(self, state: str) -> str:
+        state = find_matching_topology(state, self.param_table.keys())
+        return state.split('::')[1]
 
-        return self.get_mean_reward(state) > 0.5
 
 
-tree = AdaptationTree(root='ABC::', grammar=grammar, n_samples=1e2)
+tree = AdaptationTree(root='ABC::', grammar=grammar, n_samples=1e2, generate_param_sets=True)
+tree.search_mcts_parallel(
+    n_steps=10_000,
+    n_threads=10,
+    # run_kwargs=dict(expensive=True),
+)
+print("Done!")
+# todo: now run the circuitree with the reward function -- track the Q value for each parameter set and topology
+
 print('done')
 
 

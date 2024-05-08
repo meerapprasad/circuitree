@@ -11,11 +11,9 @@ class TFNetworkModel:
             self,
             rg,
             genotype,
-            dt,
-            nt,
-            max_iter_per_timestep,  # makes sure it doesn't run forever, not implemented yet
+            # max_iter_per_timestep,  # makes sure it doesn't run forever, not implemented yet
             inpt_perc_increase=.2,
-            params = None,
+            params=None,
     ):
 
         self.genotype = genotype
