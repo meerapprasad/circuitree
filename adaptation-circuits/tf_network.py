@@ -4,6 +4,7 @@ from reward import compute_precision_sensitivity
 from sample_params import make_input_vals, sample_ode_params
 from filter_oscillation import damped_oscillation, sustained_oscillation
 from circuitree import SimpleNetworkGrammar
+from enumerate_topologies import count_unique_uppercase_letters
 
 
 class TFNetworkModel:
@@ -23,8 +24,8 @@ class TFNetworkModel:
             self.activations,
             self.inhibitions,
         ) = SimpleNetworkGrammar.parse_genotype(genotype)
-        self.n_species = len(self.components)
-
+        self.n_species = count_unique_uppercase_letters(self.genotype.split("::")[1])
+        print(self.n_species)
         self.stabilize_tp = np.linspace(0, 5000, 20000)
         self.eval_tp = np.linspace(0, 2500, 10000)
         # todo: need to reach steady state and then add the step function -- track the slope of the counts ?
@@ -39,6 +40,7 @@ class TFNetworkModel:
         self.pop0 = np.full(3, .05)
 
     def run_ode_with_params(self):
+        # todo: need to give the n_species and pop0 relative to number of species
         out = solve_dynamics(self.pop0, self.stabilize_tp, self.n_species, self.activations, self.inhibitions,
                              self.k_cat, self.K_thresh, self.inpt[0])
         # exclude sustained oscillation

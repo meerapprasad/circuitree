@@ -55,9 +55,10 @@ def make_input_vals(init_val=.5, perc_increase=.2):
 def generate_samples(max_components, rg, n_samples, n_params=2):
     sample_per_component = {}
     for i in range(1, max_components+1):
-        sampling = latin_hypercube_sampling(n_samples*2*i, rg, n_params=n_params)  # consider forward and reverse rxn
-        k_cat = sampling[:, 0].reshape(n_params,i,n_samples)[np.newaxis]
-        K_thresh = sampling[:, 1].reshape(n_params,i, n_samples)[np.newaxis]
+        m = i+1
+        sampling = latin_hypercube_sampling(n_samples*2*m*m, rg, n_params=n_params)  # consider forward and reverse rxn
+        k_cat = sampling[:, 0].reshape(n_params,m,m, n_samples)[np.newaxis]
+        K_thresh = sampling[:, 1].reshape(n_params,m,m, n_samples)[np.newaxis]
         sample_per_component[i] = np.vstack([k_cat, K_thresh])
     # access the params sample_per_component[i][:,0] and unlist k_cat, K_thresh
     return sample_per_component

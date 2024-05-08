@@ -115,7 +115,7 @@ class AdaptationTree(CircuiTree):
 
             param_set_idx = self.get_param_set_index(state2, visit_num)
             # index param table with 1. number of params and 2. the param set index
-            param_set = self.param_sets[self.topology_size_table[state2]][:, :, :, param_set_idx]
+            param_set = self.param_sets[self.topology_size_table[state2]][:, :, :,:, param_set_idx]
 
             model = TFNetworkModel(self.rg, state, params=param_set)
             # todo: param_set needs to be a list of k_cat, K_thresh
