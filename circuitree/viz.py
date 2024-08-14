@@ -73,7 +73,7 @@ def complexity_layout(
 
     # Get the depth of each node (distance from the root)
     depth_of_node = {}
-    for i, layer in enumerate(nx.bfs_layers(tree.graph, sources=tree.root)):
+    for i, layer in enumerate(nx.bfs_layers(tree.graph, sources=str(tree.root))):
         for n in layer:
             if n in G.nodes:
                 depth_of_node[n] = i

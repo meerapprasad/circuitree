@@ -116,7 +116,7 @@ class SimpleNetworkGrammar(CircuitGrammar):
         actions = ["*terminate*"]
 
         # Get the components and interactions in the current genotype
-        components_joined, interactions_joined = genotype.strip("*").split("::")
+        components_joined, interactions_joined = (str(genotype) if type(genotype) == np.ndarray else genotype).strip("*").split("::")
         components = set(components_joined)
         interactions = set(ixn[:2] for ixn in interactions_joined.split("_") if ixn)
         n_interactions = len(interactions)
@@ -162,6 +162,7 @@ class SimpleNetworkGrammar(CircuitGrammar):
         return actions
 
     def do_action(self, genotype: str, action: str) -> str:
+        genotype= str(genotype) if type(genotype) == np.ndarray else genotype
         if action == "*terminate*":
             new_genotype = "*" + genotype
         else:
@@ -230,7 +231,7 @@ class SimpleNetworkGrammar(CircuitGrammar):
 
     @staticmethod
     def is_terminal(genotype: str) -> bool:
-        return genotype.startswith("*")
+        return (str(genotype) if type(genotype) == np.ndarray else genotype).startswith("*")
 
     @cached_property
     def _recolor(self):

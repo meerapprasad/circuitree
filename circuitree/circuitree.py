@@ -50,7 +50,7 @@ class CircuiTree(ABC):
         **kwargs,
     ):
         # Initialize RNG
-        self.rg = np.random.default_rng(seed)
+        self.rg = np.random.default_rng(int(seed) if type(seed) == np.ndarray else seed)
         self.seed = self.rg.bit_generator._seed_seq.entropy
 
         # Initialize search graph
@@ -61,10 +61,11 @@ class CircuiTree(ABC):
             self.graph.add_node(self.root, visits=0, reward=0)
         else:
             self.graph = graph
-            if self.root not in self.graph:
-                raise ValueError(
-                    f"Supplied graph does not contain the root node: {root}"
-                )
+            # todo: not sure what this was for
+            # if self.root not in self.graph:
+            #     raise ValueError(
+            #         f"Supplied graph does not contain the root node: {root}"
+            #     )
         self.graph.root = self.root
 
         # Decide whether to compute the uniqueness of each visited state
@@ -92,9 +93,9 @@ class CircuiTree(ABC):
             "graph",
         ]
 
-        if kwargs.get('enumerate_topologies'):
+        if kwargs.get('enumerate_topologies', False):
             # todo: enumerate all topologies
-            self.grow_tree(root)
+            self.grow_tree(str(root) if type(root) == np.ndarray else root)
             self.unique_topologies = get_topologies_from_tree(np.array(self.graph.nodes))
 
 
@@ -555,10 +556,13 @@ class CircuiTree(ABC):
         # Save the other attributes
         if json_file is not None:
             attrs = self.get_attributes(save_attrs)
-            json_target = Path(json_file).with_suffix(".json")
-            with json_target.open("w") as f:
-                json.dump(attrs, f, indent=4)
-            return gml_target, json_target
+            # json_target = Path(json_file).with_suffix(".json")
+            # with json_target.open("w") as f:
+            #     json.dump(attrs, f, indent=4)
+            # return npz_target
+            npz_target = Path(json_file).with_suffix(".npz")
+            np.savez(npz_target, **attrs)
+            return gml_target, npz_target
         else:
             return gml_target
 
@@ -566,7 +570,8 @@ class CircuiTree(ABC):
     def from_file(
         cls,
         graph_gml: str | Path | None,
-        attrs_json: str | Path,
+        attrs_json: Optional[str | Path] = None,
+        attrs_npz: Optional[str | Path] =  None,
         grammar_cls: Optional[CircuitGrammar] = None,
         grammar_kwargs: Optional[dict] = None,
         **kwargs,
@@ -582,8 +587,13 @@ class CircuiTree(ABC):
         in globals() and used to construct the grammar object.
         """
         # Load the attributes from the json file
-        with open(attrs_json, "r") as f:
-            kwargs.update(json.load(f))
+        if attrs_json is not None:
+            with open(attrs_json, "r") as f:
+                kwargs.update(json.load(f))
+        if attrs_npz is not None:
+            with np.load(attrs_npz, allow_pickle=True) as f:
+                for k, v in f.items():
+                    kwargs[k] = v
 
         # Make the grammar object
         # Get kwargs from the grammar_kwargs in this function and/or from the json
